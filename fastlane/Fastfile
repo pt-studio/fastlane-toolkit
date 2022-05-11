@@ -34,33 +34,10 @@ platform :ios do
     clean_before_build = options[:clean_before_build].nil? ? false : options[:clean_before_build]
     silent = options[:silent].nil? ? true : options[:silent]
     xcargs = options[:xcargs].nil? ? "" : options[:xcargs]
-    is_jenkins_ci = ENV["EXEC_RUNNING_ON_JENKINS"] != nil && strip_quotes(ENV["EXEC_RUNNING_ON_JENKINS"]) == "YES"
 
-    if is_jenkins_ci
-      keychain_name = strip_quotes(ENV["keychain"])
-      keychain_password = strip_quotes(ENV["keychain_password"])
-      keychain_path = "#{ENV["HOME"]}/Library/Keychains/#{keychain_name}.keychain-db"
-    elsif is_ci
-      keychain_name = "fastlane.keychain"
-      keychain_password = [*('a'..'z'),*('A'..'Z'),*('0'..'9')].shuffle[0,16].join
-      create_keychain(
-        name: keychain_name,
-        password: keychain_password,
-        default_keychain: true,
-        unlock: true,
-        timeout: 21600, # 6 hours, bypass regression introduced in 2.185.1 https://github.com/fastlane/fastlane/issues/18892
-        lock_when_sleeps: false
-      )
-      keychain_path = File.expand_path("#{Actions.lane_context[SharedValues::KEYCHAIN_PATH]}-db")
-    else
-      keychain_name = UI.input("Your keychain name (e.g. login)? ")
-      keychain_password = UI.password("Your keychain password? ")
-      if keychain_name == "login"
-        keychain_path = FastlaneCore::Helper.keychain_path(keychain_name)
-      else
-        keychain_path = UI.input("Your keychain absolute path? ")
-      end
-    end
+    keychain_name = strip_quotes(ENV["keychain"])
+    keychain_password = strip_quotes(ENV["keychain_password"])
+    keychain_path = FastlaneCore::Helper.keychain_path(keychain_name)
 
     update_code_signing_settings(path: project.projectPath, use_automatic_signing: false)
     install_provisioning_profile(path: configuration.provisioningProfile.path)
@@ -116,7 +93,10 @@ platform :ios do
 
     export_options = {
       signingStyle: "manual",
-      provisioningProfiles: provisioningProfiles
+      provisioningProfiles: provisioningProfiles,
+      uploadBitcode: false,
+      uploadSymbols: true,
+      compileBitcode: false
     }
 
     export_options[:iCloudContainerEnvironment] = configuration.iCloudContainerEnvironment unless configuration.iCloudContainerEnvironment.nil?
